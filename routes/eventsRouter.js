@@ -1,13 +1,15 @@
-const express = require("express");
-const Router = express.Router();
+const Router = require('express')
+const router = new Router()
+const eventsController = require('../controllers/eventsController')
+const jwtMiddleware = require('../middleware/jwtMiddleware')
 
-const EventsController = require('../controllers/eventsController')
-const jwtMiddleware = require('../controllers/jwtMiddleware')
+// Публичные маршруты
+router.get('/', eventsController.getAll)
+router.get('/:id', eventsController.getOne)
 
-Router.get('/', EventsController.getAll)
-Router.get('/:id', EventsController.getOne)
-Router.post('/', jwtMiddleware,  EventsController.createEvent)
-Router.patch('/', jwtMiddleware, EventsController.editEvent)
-Router.delete('/:id', jwtMiddleware, EventsController.deleteEvents)
+// Защищенные маршруты (только для админов)
+router.post('/', jwtMiddleware, eventsController.createEvent)
+router.patch('/:id', jwtMiddleware, eventsController.editEvent)
+router.delete('/:id', jwtMiddleware, eventsController.deleteEvents)
 
-module.exports = Router;
+module.exports = router

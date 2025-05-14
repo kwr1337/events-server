@@ -1,4 +1,4 @@
-const Events = require("../models/models");
+const {Events, Direction} = require("../models/models");
 const ApiError = require("../error/ApiError");
 const EditDefault = require('./editDefault')
 const uuid = require("uuid");
@@ -7,96 +7,133 @@ const fs = require('fs')
 
 class EventsController {
     async getAll(req, res, next) {
-        await Events.findAll().then(e => {
-            return res.json(e);
-        }).catch(err => {
-            console.log(err)
-            return next(ApiError.internal(err))
-        });
+        try {
+            const events = await Events.findAll({
+                include: [{
+                    model: Direction,
+                    as: 'direction'
+                }]
+            })
+            return res.json(events)
+        } catch (e) {
+            next(ApiError.badRequest(e.message))
+        }
     }
+    
     async getOne(req, res, next) {
-        const id = req.params.id
-        console.log(id)
-        await Events.findOne({where: {id : id}}).then(e => {
-            return res.json(e);
-        }).catch(err => {
-            console.log(err)
-            return next(ApiError.internal(err))
-        });
+        try {
+            const {id} = req.params
+            const event = await Events.findOne({
+                where: {id},
+                include: [{
+                    model: Direction,
+                    as: 'direction'
+                }]
+            })
+            
+            if (!event) {
+                return next(ApiError.badRequest('Событие не найдено'))
+            }
+            
+            return res.json(event)
+        } catch (e) {
+            next(ApiError.badRequest(e.message))
+        }
     }
 
     async createEvent(req, res, next) {
-
-        if (!req.files) return next(ApiError.badRequest('Не заполенено поле img'))
-
-        const {name, description, description2, place, date, age_limit, ref_video, ref_buy, price} = req.body
-
-        const {img} = req.files
-        const fileName = uuid.v4() + ".jpg"
-
-
-        await Events.create({
-            name: name,
-            description: description,
-            description2: description2,
-            place: place,
-            date: date,
-            age_limit: age_limit,
-            ref_video: ref_video,
-            ref_buy: ref_buy,
-            price: price,
-            img: fileName
-        }).then(data => {
-            img.mv(path.resolve(__dirname, '..', 'static', fileName)).catch(e => next(ApiError.internal(e)))
-            return res.json({message: 'Мероприятие добавлено'})
-        }).catch(e => {
-            //console.log(e, 'оШИИИБКАКАБА БАБКБА КБ АБ')
-            return next(ApiError.badRequest('Не заполенены все поля ' + e))
-        })
+        try {
+            const {name, description, description2, date, location, directionId, age_limit, ref_video} = req.body
+            
+            if (!req.files || !req.files.img) {
+                return next(ApiError.badRequest('Изображение обязательно'))
+            }
+            
+            const {img} = req.files
+            const fileName = uuid.v4() + ".jpg"
+            img.mv(path.resolve(__dirname, '..', 'static', fileName))
+            
+            const event = await Events.create({
+                name,
+                description,
+                description2,
+                date,
+                location,
+                age_limit,
+                ref_video,
+                img: fileName,
+                directionId
+            })
+            
+            return res.json(event)
+        } catch (e) {
+            next(ApiError.badRequest(e.message))
+        }
     }
 
     async editEvent(req, res, next) {
-        //
-        // const arr = req.body
-        // const img = req.files
-        //
-        // if (!arr['id']) return next(ApiError.badRequest('id не задан'))
-        // if (img) {
-        //     const fileName = uuid.v4() + '.jpg'
-        //     arr['img'] = fileName
-        //
-        //     await Events.findOne({where: {id: arr['id']}}).then(async data => {
-        //         console.log('Это дата', data)
-        //         if (data) {
-        //             console.log('Примерный path', `${__dirname}/../static/${data.img}`)
-        //             await fs.unlink(`${__dirname}/events-server/static/${data.img}`, err => console.log('Ошибка удаления',err))
-        //             await img.img.mv(path.resolve(__dirname, '..', 'static', fileName)).catch(e => {
-        //                 return next(ApiError.internal())
-        //             })
-        //         } else return next(ApiError.badRequest('Нет ивента с таким id'))
-        //     }).catch(e => {
-        //         return next(ApiError.internal(e))
-        //     })
-        //
-        //     return EditDefault(res, req, next, arr)
-        // } else {
-        //     return EditDefault(res, req, next, arr)
-        // }
-
+        try {
+            const {id} = req.params
+            const {name, description, description2, date, location, directionId, age_limit, ref_video} = req.body
+            
+            const event = await Events.findOne({where: {id}})
+            if (!event) {
+                return next(ApiError.badRequest('Событие не найдено'))
+            }
+            
+            // Обработка изображения
+            let imgName = event.img
+            if (req.files && req.files.img) {
+                // Удаляем старое изображение
+                fs.unlink(path.resolve(__dirname, '..', 'static', imgName), (err) => {
+                    if (err) console.log('Ошибка при удалении файла:', err)
+                })
+                
+                const img = req.files.img
+                imgName = uuid.v4() + ".jpg"
+                img.mv(path.resolve(__dirname, '..', 'static', imgName))
+            }
+            
+            // Обновляем запись
+            await event.update({
+                name: name || event.name,
+                description: description || event.description,
+                description2: description2 || event.description2,
+                date: date || event.date,
+                location: location || event.location,
+                age_limit: age_limit || event.age_limit,
+                ref_video: ref_video || event.ref_video,
+                img: imgName,
+                directionId: directionId || event.directionId
+            })
+            
+            return res.json(event)
+        } catch (e) {
+            next(ApiError.badRequest(e.message))
+        }
     }
 
-
     async deleteEvents(req, res, next) {
-        const id = req.params.id
-        await Events.findOne({where: {id: id}}).then(async stat => {
-             await Events.destroy({where: {id: id}}).then(async data => {
-                 await fs.unlink(`${__dirname}/../static/${stat.img}`, err => console.log(err))
-                return res.json({message: `Мероприятие с номером ${id} удалено успешно`})
+        try {
+            const {id} = req.params
+            
+            const event = await Events.findOne({where: {id}})
+            if (!event) {
+                return next(ApiError.badRequest('Событие не найдено'))
+            }
+            
+            // Удаляем изображение
+            fs.unlink(path.resolve(__dirname, '..', 'static', event.img), (err) => {
+                if (err) console.log('Ошибка при удалении файла:', err)
             })
-        }).catch(err => {
-            console.log(err)
-            return next(ApiError.badRequest('Мероприятия с таким номером не существует'))
-        })
+            
+            // Удаляем запись
+            await event.destroy()
+            
+            return res.json({message: 'Событие удалено'})
+        } catch (e) {
+            next(ApiError.badRequest(e.message))
+        }
     }
 }
 

@@ -1,10 +1,15 @@
-const express = require("express");
-const Router = express.Router();
-
+const Router = require('express')
+const router = new Router()
+const directionRouter = require('./directionRouter')
 const eventsRouter = require('./eventsRouter')
+const socialProjectRouter = require('./socialProjectRouter')
+const activityDirectionRouter = require('./activityDirectionRouter')
 const authController = require('../controllers/authController')
 
-Router.use('/events', eventsRouter)
-Router.post('/login', authController.login)
+router.use('/directions', directionRouter)
+router.use('/events', eventsRouter)
+router.use('/social-projects', socialProjectRouter)
+router.use('/activity-directions', activityDirectionRouter)
+router.post('/login', authController.login)
 
-module.exports = Router;
+module.exports = router
