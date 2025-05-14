@@ -11,7 +11,12 @@ const error = require('./error/ErrorHandlerMiddleware')
 const app = express()
 
 // Middleware
-app.use(cors())
+app.use(cors({
+    origin: ['http://localhost:8080', 'http://kwr1337-events-server-6f34.twc1.net'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}))
 app.use(express.json())
 app.use(express.static(path.resolve(__dirname, 'static')))
 app.use(fileUpload({}))
