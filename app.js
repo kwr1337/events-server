@@ -12,10 +12,12 @@ const app = express()
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:8080', 'http://kwr1337-events-server-6f34.twc1.net'],
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
 }))
 app.use(express.json())
 app.use(express.static(path.resolve(__dirname, 'static')))
@@ -38,8 +40,7 @@ const start = async() => {
         await sequelize.authenticate()
         console.log('Database connection established successfully')
         
-        // Синхронизация моделей с БД (с удалением существующих таблиц)
-        // await sequelize.sync({ force: true });
+        // Синхронизация моделей с БД
         await sequelize.sync();
         console.log('Database models synchronized successfully')
 
